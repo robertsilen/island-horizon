@@ -1,0 +1,1086 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Island Horizon</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 20px auto;
+            padding: 0 20px;
+        }
+        .input-group {
+            margin-bottom: 20px;
+        }
+        .input-group label {
+            margin-left: 15px;
+            margin-right: 5px;
+        }
+        .input-group input,
+        .input-group select,
+        .input-group button {
+            padding: 5px 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        .input-group input[type="number"] {
+            width: 60px;  /* Default width for number inputs */
+            /* Remove spinners */
+            -moz-appearance: textfield;  /* Firefox */
+        }
+        /* Remove spinners for Chrome, Safari, Edge, Opera */
+        .input-group input[type="number"]::-webkit-outer-spin-button,
+        .input-group input[type="number"]::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+        .input-group input#latitude,
+        .input-group input#longitude {
+            width: 80px;  /* Wider for lat/lon */
+        }
+        .input-group input#radius,
+        .input-group input#direction {
+            width: 40px;  /* Narrower for radius/direction */
+        }
+        .input-group button {
+            background-color: #f0f0f0;
+            cursor: pointer;
+        }
+        .input-group button:hover {
+            background-color: #e0e0e0;
+        }
+        .input-group button:active {
+            background-color: #d0d0d0;
+        }
+        .input-group select {
+            margin-right: 15px;
+            min-width: 160px;
+        }
+        .input-group select#language {
+            min-width: unset;
+            width: auto;
+        }
+        .input-group button {
+            margin-right: 15px;
+        }
+        .input-row {
+            margin: 10px 0;
+            text-align: left;
+            padding-left: 20px;
+        }
+        .input-group button:last-child {
+            margin: 10px 0;
+            padding: 5px 20px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            font-weight: bold;
+        }
+        .input-group button:last-child:hover {
+            background-color: #45a049;
+        }
+        .input-group button:last-child:active {
+            background-color: #3d8b40;
+        }
+        #islandsList {
+            list-style-type: none;
+            padding: 0;
+        }
+        .island-item {
+            margin: 5px 0;
+            padding: 0;
+            border: none;
+            background: none;
+        }
+        .direction-indicator {
+            position: relative;
+            height: 400px;
+            margin: 20px 0 40px 0;
+            width: 100%;
+            border-bottom: 2px solid #000;
+            background: linear-gradient(to bottom, rgba(135,206,235,0.2), rgba(135,206,235,0));
+        }
+        .direction-marker {
+            position: absolute;
+            left: 50%;
+            bottom: -10px;
+            transform: translateX(-50%);
+            width: 2px;
+            height: 20px;
+            background: #000;
+        }
+        .direction-label {
+            position: absolute;
+            left: 50%;
+            bottom: -35px;
+            transform: translateX(-50%);
+            font-size: 12px;
+        }
+        .edge-label {
+            position: absolute;
+            bottom: -35px;
+            font-size: 12px;
+            transform: translateX(-50%);
+        }
+        .edge-label.left {
+            left: 0;
+        }
+        .edge-label.right {
+            right: 0;
+            transform: translateX(50%);
+        }
+        .island-marker {
+            position: absolute;
+            width: 6px;
+            height: 6px;
+            background: red;
+            border-radius: 50%;
+            transform: translate(-50%, 50%);
+            cursor: pointer;
+        }
+        .island-span {
+            position: absolute;
+            height: 2px;
+            background: red;
+            transform: translateY(50%);
+            cursor: pointer;
+            /* Add these properties to hide overflow */
+            visibility: hidden;  /* Start hidden */
+        }
+        /* Only show if within bounds */
+        .island-span[style*="bottom: "] {
+            visibility: visible;
+        }
+        /* Hide if bottom position is greater than 100% */
+        .island-span[style*="bottom: 1"] {
+            visibility: hidden;
+        }
+        .island-span::after {
+            content: attr(data-name);
+            position: absolute;
+            bottom: 4px;  /* Position just above the line */
+            left: 50%;
+            transform: translateX(-50%);
+            white-space: nowrap;
+            font-size: 10px;  /* Smaller font size */
+            color: #333;
+            pointer-events: none;  /* Prevent text from interfering with hover */
+        }
+        /* Show more details on hover */
+        .island-span:hover::before {
+            content: attr(title);
+            position: absolute;
+            top: -20px;
+            left: 50%;
+            transform: translateX(-50%);
+            white-space: pre;  /* Preserve line breaks in title */
+            background: white;
+            padding: 2px 5px;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+            font-size: 12px;
+            z-index: 1;
+        }
+        .islands-container {
+            display: flex;
+            margin-top: 20px;
+            width: 100%;
+        }
+        .islands-column {
+            width: 50%;
+            padding: 0 10px;
+            box-sizing: border-box;
+        }
+        .islands-column:first-child {
+            padding-right: 20px;
+        }
+        .islands-column:last-child {
+            padding-left: 20px;
+        }
+        .islands-list {
+            padding: 0;
+            list-style-type: disc;
+            font-size: 12px;
+        }
+        /* Add styles for the fullscreen buttons */
+        .fullscreen-button {
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            padding: 5px 10px;
+            background: rgba(255, 255, 255, 0.8);
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            cursor: pointer;
+            z-index: 1000;
+            font-size: 16px;
+            line-height: 1;
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .fullscreen-button:hover {
+            background: rgba(255, 255, 255, 0.9);
+        }
+        /* Styles for when in fullscreen */
+        .direction-indicator.fullscreen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            margin: 0;
+            z-index: 9999;
+            background: linear-gradient(to bottom, #87CEEB, #E0F6FF);
+        }
+        .direction-indicator.fullscreen .fullscreen-button {
+            top: 10px;
+            bottom: auto;
+        }
+        .direction-indicator.fullscreen .direction-marker {
+            bottom: 40px;
+        }
+        .direction-indicator.fullscreen .direction-label {
+            bottom: 15px;
+        }
+        .direction-indicator.fullscreen .edge-label {
+            bottom: 15px;
+        }
+        /* Add style for the map links */
+        .map-links {
+            display: block;
+            text-align: right;
+            font-size: 10px;
+            margin-top: -35px;
+            margin-bottom: 35px;
+            color: #666;
+        }
+        .map-links a {
+            text-decoration: none;
+            color: #666;
+        }
+        .map-links a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="input-group">
+        <div class="input-row">
+            <button onclick="getCurrentLocation()" id="locationButton">Get Current Location</button>
+            
+            <label for="autoUpdate">
+                <input type="checkbox" id="autoUpdate" onchange="toggleAutoUpdate(this)"> Auto Update
+            </label>
+            
+            <label for="location-preset">Presets:</label>
+            <select id="location-preset" onchange="updateLocation()">
+                <option value="none">None</option>
+                <option value="brunsparken">Brunsparken, Helsingfors</option>
+                <option value="gaddvik">Gäddvik, Esbo</option>
+                <option value="tulludden">Tulludden, Hangö</option>
+            </select>
+        </div>
+        
+        <div class="input-row">
+            <label for="latitude">Lat:</label>
+            <input type="number" id="latitude" step="any" value="60.155229">
+            
+            <label for="longitude">Lon:</label>
+            <input type="number" id="longitude" step="any" value="24.781338">
+            
+            <label for="radius">Radius (km):</label>
+            <input type="number" id="radius" step="any" value="3" min="0.1" max="20">
+
+            <label for="direction">Direction:</label>
+            <input type="number" id="direction" step="any" value="135" min="0" max="360">
+            
+            <label for="language">Lang:</label>
+            <select id="language" onchange="findNearbyIslands()">
+                <option value="sv">sv</option>
+                <option value="fi">fi</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="direction-indicator">
+        <button class="fullscreen-button" onclick="toggleFullscreen(this)">⛶</button>
+        <div class="direction-marker"></div>
+        <div class="direction-label"></div>
+        <div class="edge-label left"></div>
+        <div class="edge-label right"></div>
+    </div>
+    <div class="map-links">
+        View in <a href="#" onclick="openInOSM(); return false;">OpenStreetMap</a>, 
+        <a href="#" onclick="openInGoogleMaps(); return false;">Google Maps</a>
+    </div>
+
+    <div id="lastUpdated" style="font-size: 12px; margin-top: 20px;"></div>
+
+    <table id="islandsTable" class="islands-list" style="width: 100%; border-collapse: collapse;">
+        <thead>
+            <tr>
+                <th style="text-align: left;">#</th>
+                <th style="text-align: left;">Name</th>
+                <th style="text-align: left;">Alternative name</th>
+                <th style="text-align: left;">Wikidata</th>
+                <th style="text-align: left;">Distance (km)</th>
+                <th style="text-align: left;">Span (°)</th>
+            </tr>
+        </thead>
+        <tbody id="islandsList"></tbody>
+    </table>
+
+    <script>
+        // Parse URL parameters
+        function getUrlParams() {
+            const params = new URLSearchParams(window.location.search);
+            return {
+                lat: params.get('lat'),
+                lon: params.get('lon'),
+                radius: params.get('radius'),
+                dir: params.get('dir'),
+                lang: params.get('lang')
+            };
+        }
+
+        // Set initial values from URL parameters if present
+        const urlParams = getUrlParams();
+        if (urlParams.lat) document.getElementById('latitude').value = urlParams.lat;
+        if (urlParams.lon) document.getElementById('longitude').value = urlParams.lon;
+        if (urlParams.radius) document.getElementById('radius').value = urlParams.radius;
+        if (urlParams.dir) document.getElementById('direction').value = urlParams.dir;
+        if (urlParams.lang) document.getElementById('language').value = urlParams.lang;
+
+        const locationPresets = {
+            brunsparken: {
+                lat: 60.155095,
+                lon: 24.955442,
+                direction: 180
+            },
+            gaddvik: {
+                lat: 60.153636,
+                lon: 24.775111,
+                direction: 135
+            },
+            tulludden: {
+                lat: 59.808896,
+                lon: 22.893076,
+                direction: 180
+            },
+            gäddvik: {
+                lat: 60.153636,
+                lon: 24.775111,
+                direction: 135
+            }
+        };
+
+        function updateLocation() {
+            const preset = document.getElementById('location-preset').value;
+            const location = locationPresets[preset];
+            
+            document.getElementById('latitude').value = location.lat;
+            document.getElementById('longitude').value = location.lon;
+            document.getElementById('direction').value = location.direction;
+            
+            debouncedSearch();
+            updateURL();
+        }
+
+        async function findNearbyIslands() {
+            const lat = document.getElementById('latitude').value;
+            const lon = document.getElementById('longitude').value;
+            const radius = parseFloat(document.getElementById('radius').value) || 3; // fallback to 3 km
+
+            try {
+                // Modified query to include both islands and islets
+                const query = `
+                    [out:json][timeout:25];
+                    (
+                        way["place"="island"](around:${radius * 1000},${lat},${lon});
+                        way["place"="islet"](around:${radius * 1000},${lat},${lon});
+                        relation["place"="island"](around:${radius * 1000},${lat},${lon});
+                        relation["place"="islet"](around:${radius * 1000},${lat},${lon});
+                    );
+                    out geom;
+                `;
+
+                const response = await fetch('https://overpass-api.de/api/interpreter', {
+                    method: 'POST',
+                    body: query
+                });
+
+                const data = await response.json();
+                displayIslands(data.elements);
+
+            } catch (error) {
+                console.error('Error fetching islands:', error);
+                document.getElementById('islandsList').innerHTML = 
+                    '<tr><td colspan="6">Error fetching islands. Please try again.</td></tr>';
+            }
+        }
+
+        function displayIslands(islands) {
+            const listElement = document.getElementById('islandsList');
+            const indicatorElement = document.querySelector('.direction-indicator');
+            listElement.innerHTML = '';
+            
+            // Clear previous island markers
+            const oldMarkers = indicatorElement.querySelectorAll('.island-span');
+            oldMarkers.forEach(marker => marker.remove());
+
+            if (!islands || islands.length === 0) {
+                listElement.innerHTML = '<tr><td colspan="6">No islands found</td></tr>';
+                updateLastUpdated(0, 0); // Update last updated with 0 islands
+                return;
+            }
+
+            const currentLat = parseFloat(document.getElementById('latitude').value);
+            const currentLon = parseFloat(document.getElementById('longitude').value);
+            const centerDirection = parseFloat(document.getElementById('direction').value) || 135;
+
+            // Create arrays to store islands for each side
+            const allIslands = [];
+
+            islands.forEach(island => {
+                if (island.tags && island.tags.name) {
+                    let coordinates;
+                    
+                    // Get coordinates based on island type
+                    if (island.type === 'way' && island.geometry) {
+                        coordinates = island.geometry;
+                    } else if (island.type === 'relation' && island.members) {
+                        coordinates = island.members.find(m => m.role === 'outer')?.geometry;
+                    }
+                    
+                    if (coordinates) {
+                        const span = calculateIslandSpan(coordinates, currentLat, currentLon);
+                        
+                        // Calculate relative bearings to center direction
+                        const minRelative = ((span.minAngle - centerDirection + 540) % 360) - 180;
+                        const maxRelative = ((span.maxAngle - centerDirection + 540) % 360) - 180;
+                        
+                        // Calculate the closest point of the span to the center
+                        const closestToCenterDeg = Math.min(
+                            Math.abs(minRelative),
+                            Math.abs(maxRelative)
+                        );
+                        
+                        // Create island object with all necessary information
+                        const islandObject = {
+                            island: island,
+                            span: span,
+                            minRelative: minRelative,
+                            maxRelative: maxRelative,
+                            closestToCenterDeg: closestToCenterDeg
+                        };
+                        
+                        // Add to a single array instead of separate left/right arrays
+                        allIslands.push(islandObject); // Ensure all islands are pushed to a single array
+                    }
+                }
+            });
+
+            // Sort the combined array by distance
+            allIslands.sort((a, b) => a.span.distance - b.span.distance);
+
+            // Populate the table with the combined islands
+            allIslands.forEach((islandObj, index) => { // Use index for numbering
+                const island = islandObj.island;
+                const span = islandObj.span;
+                const selectedLang = document.getElementById('language').value;
+                
+                const osmLink = `https://www.openstreetmap.org/${island.type}/${island.id}`;
+                const locationInfo = `Distance: ${span.distance.toFixed(2)} km, Span: ${span.minAngle.toFixed(1)}°-${span.maxAngle.toFixed(1)}°`;
+                
+                // Provide a default name if none exists
+                const displayName = island.tags[`name:${selectedLang}`] || island.tags.name || 'Name missing';
+                const svName = selectedLang !== 'sv' ? island.tags['name:sv'] || '' : '';
+                const fiName = selectedLang !== 'fi' ? island.tags['name:fi'] || '' : '';
+                const wikidata = island.tags['wikidata'] || '';
+                
+                const alternateInfo = [
+                    svName && `sv:${svName}`,
+                    fiName && `fi:${fiName}`
+                ].filter(Boolean).join(', ');
+
+                const listItem = document.createElement('tr');
+                listItem.innerHTML = `
+                    <td>${index + 1}</td> <!-- Numbering starts from 1 -->
+                    <td><strong><a href="${osmLink}" target="_blank">${displayName}</a></strong></td>
+                    <td>${alternateInfo}</td>
+                    <td>${wikidata ? `<a href="https://www.wikidata.org/wiki/${wikidata}" target="_blank">${wikidata}</a>` : 'N/A'}</td>
+                    <td>${span.distance.toFixed(2)}</td>
+                    <td>${span.minAngle.toFixed(1)}° - ${span.maxAngle.toFixed(1)}°</td>
+                `;
+                listElement.appendChild(listItem);
+                addMarker(islandObj, indicatorElement, centerDirection);
+            });
+
+            // Update last updated information
+            const displayedCount = listElement.childElementCount; // Count of displayed islands
+            updateLastUpdated(islands.length, displayedCount);
+        }
+
+        function calculateIslandSpan(coordinates, currentLat, currentLon) {
+            let minAngle = 360;
+            let maxAngle = 0;
+            let minDistance = Infinity;
+            
+            coordinates.forEach(point => {
+                // Calculate bearing to this point
+                const bearingRad = Math.atan2(
+                    Math.sin(point.lon * Math.PI/180 - currentLon * Math.PI/180) * 
+                    Math.cos(point.lat * Math.PI/180),
+                    Math.cos(currentLat * Math.PI/180) * Math.sin(point.lat * Math.PI/180) -
+                    Math.sin(currentLat * Math.PI/180) * Math.cos(point.lat * Math.PI/180) *
+                    Math.cos(point.lon * Math.PI/180 - currentLon * Math.PI/180)
+                );
+                
+                let bearingDeg = (bearingRad * 180/Math.PI + 360) % 360;
+                
+                // Update min/max angles
+                minAngle = Math.min(minAngle, bearingDeg);
+                maxAngle = Math.max(maxAngle, bearingDeg);
+                
+                // Calculate distance to this point
+                const distance = haversineDistance(currentLat, currentLon, point.lat, point.lon);
+                minDistance = Math.min(minDistance, distance);
+            });
+            
+            // Handle case where island crosses the north line (e.g., spans from 350° to 10°)
+            if (maxAngle - minAngle > 180) {
+                const temp = minAngle;
+                minAngle = maxAngle;
+                maxAngle = temp;
+            }
+            
+            return {
+                minAngle: minAngle,
+                maxAngle: maxAngle,
+                distance: minDistance
+            };
+        }
+
+        function addMarker(islandObj, indicatorElement, centerDirection) {
+            const span = islandObj.span;
+            const selectedLang = document.getElementById('language').value;
+            const displayName = islandObj.island.tags[`name:${selectedLang}`] || islandObj.island.tags.name || 
+                (selectedLang === 'sv' ? 'Saknar namn' : 'Nimi puuttuu');
+            
+            // Check if any part of the island is within view
+            if ((islandObj.minRelative >= -90 && islandObj.minRelative <= 90) || 
+                (islandObj.maxRelative >= -90 && islandObj.maxRelative <= 90) ||
+                (islandObj.minRelative <= -90 && islandObj.maxRelative >= 90)) {
+                
+                // Clamp the positions to the visible range
+                const leftPos = Math.max(-90, Math.min(90, islandObj.minRelative));
+                const rightPos = Math.max(-90, Math.min(90, islandObj.maxRelative));
+                
+                // Convert to percentage positions
+                const leftPercent = (leftPos + 90) / 180 * 100;
+                const rightPercent = (rightPos + 90) / 180 * 100;
+                
+                // Convert distance to vertical position - closer islands appear lower (closer to horizon)
+                const maxRadius = parseFloat(document.getElementById('radius').value) || 3;
+                const verticalPosition = Math.max(0, 100 * (span.distance / maxRadius));
+                
+                const marker = document.createElement('div');
+                marker.className = 'island-span';
+                marker.style.left = `${Math.min(leftPercent, rightPercent)}%`;
+                marker.style.width = `${Math.abs(rightPercent - leftPercent)}%`;
+                marker.style.bottom = `${verticalPosition}%`;
+                marker.setAttribute('data-name', displayName);
+                marker.title = `${islandObj.island.tags.name}\n${span.minAngle.toFixed(1)}°-${span.maxAngle.toFixed(1)}°\n${span.distance.toFixed(2)}km`;
+                indicatorElement.appendChild(marker);
+            }
+        }
+
+        function calculateDistanceAndDirection(lat, lon, coordinates) {
+            let minDistance = Infinity;
+            let closestPoint = null;
+            
+            // For each segment of the perimeter
+            for (let i = 0; i < coordinates.length - 1; i++) {
+                const point1 = coordinates[i];
+                const point2 = coordinates[i + 1];
+
+                // Calculate distance to this segment
+                const distance = distanceToSegment(
+                    lat, lon,
+                    point1.lat, point1.lon,
+                    point2.lat, point2.lon
+                );
+
+                if (distance < minDistance) {
+                    minDistance = distance;
+                    // Find the closest point on the segment
+                    closestPoint = findClosestPointOnSegment(
+                        lat, lon,
+                        point1.lat, point1.lon,
+                        point2.lat, point2.lon
+                    );
+                }
+            }
+            
+            if (minDistance === Infinity || !closestPoint) {
+                return { distance: null, direction: null };
+            }
+
+            // Calculate bearing to closest point
+            const bearingRad = Math.atan2(
+                Math.sin(closestPoint.lon * Math.PI/180 - lon * Math.PI/180) * 
+                Math.cos(closestPoint.lat * Math.PI/180),
+                Math.cos(lat * Math.PI/180) * Math.sin(closestPoint.lat * Math.PI/180) -
+                Math.sin(lat * Math.PI/180) * Math.cos(closestPoint.lat * Math.PI/180) *
+                Math.cos(closestPoint.lon * Math.PI/180 - lon * Math.PI/180)
+            );
+
+            const bearingDeg = (bearingRad * 180/Math.PI + 360) % 360;
+            const direction = getCompassDirection(bearingDeg);
+
+            return { 
+                distance: minDistance,
+                direction: {
+                    compass: direction,
+                    degrees: bearingDeg
+                }
+            };
+        }
+
+        function findClosestPointOnSegment(lat, lon, lat1, lon1, lat2, lon2) {
+            // Convert to radians
+            const [φ, λ] = [lat, lon].map(x => x * Math.PI/180);
+            const [φ1, λ1] = [lat1, lon1].map(x => x * Math.PI/180);
+            const [φ2, λ2] = [lat2, lon2].map(x => x * Math.PI/180);
+
+            // If segment is essentially a point, return that point
+            if (lat1 === lat2 && lon1 === lon2) {
+                return { lat: lat1, lon: lon1 };
+            }
+
+            // Calculate the closest point
+            const a = haversineDistance(lat1, lon1, lat, lon);
+            const b = haversineDistance(lat2, lon2, lat, lon);
+            const c = haversineDistance(lat1, lon1, lat2, lon2);
+
+            if (b * b >= a * a + c * c) return { lat: lat1, lon: lon1 };
+            if (a * a >= b * b + c * c) return { lat: lat2, lon: lon2 };
+
+            // Return the interpolated point
+            const f = a / c;
+            return {
+                lat: lat1 + f * (lat2 - lat1),
+                lon: lon1 + f * (lon2 - lon1)
+            };
+        }
+
+        function getCompassDirection(bearing) {
+            const directions = ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE',
+                              'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW'];
+            const index = Math.round(bearing * 16 / 360) % 16;
+            return directions[index];
+        }
+
+        function calculateDistanceToPerimeter(lat, lon, coordinates) {
+            let minDistance = Infinity;
+            
+            // For each segment of the perimeter
+            for (let i = 0; i < coordinates.length - 1; i++) {
+                const point1 = coordinates[i];
+                const point2 = coordinates[i + 1];
+
+                // Calculate distance to this segment
+                const distance = distanceToSegment(
+                    lat, lon,
+                    point1.lat, point1.lon,
+                    point2.lat, point2.lon
+                );
+                minDistance = Math.min(minDistance, distance);
+            }
+            
+            return minDistance === Infinity ? null : minDistance;
+        }
+
+        function distanceToSegment(lat, lon, lat1, lon1, lat2, lon2) {
+            // Convert all coordinates to radians
+            const [φ, λ] = [lat, lon].map(x => x * Math.PI / 180);
+            const [φ1, λ1] = [lat1, lon1].map(x => x * Math.PI / 180);
+            const [φ2, λ2] = [lat2, lon2].map(x => x * Math.PI / 180);
+            
+            // Earth's radius in kilometers
+            const R = 6371;
+
+            // If segment is essentially a point, return distance to that point
+            if (lat1 === lat2 && lon1 === lon2) {
+                return haversineDistance(lat, lon, lat1, lon1);
+            }
+
+            // Calculate bearing from point 1 to point 2
+            const θ13 = bearing(φ1, λ1, φ, λ);
+            const θ12 = bearing(φ1, λ1, φ2, λ2);
+
+            // Calculate distance from point 1 to the input point
+            const d13 = haversineDistance(lat1, lon1, lat, lon);
+
+            // Calculate cross-track distance
+            const dxt = Math.asin(Math.sin(d13/R) * Math.sin(θ13 - θ12)) * R;
+
+            // Calculate along-track distance
+            const dat = Math.acos(Math.cos(d13/R) / Math.cos(dxt/R)) * R;
+
+            // Check if closest point lies beyond the segment endpoints
+            const d12 = haversineDistance(lat1, lon1, lat2, lon2);
+            
+            if (dat > d12) {
+                return haversineDistance(lat, lon, lat2, lon2);
+            } else if (dat < 0) {
+                return haversineDistance(lat, lon, lat1, lon1);
+            }
+            
+            return Math.abs(dxt);
+        }
+
+        function haversineDistance(lat1, lon1, lat2, lon2) {
+            const R = 6371; // Earth's radius in kilometers
+            const φ1 = lat1 * Math.PI / 180;
+            const φ2 = lat2 * Math.PI / 180;
+            const Δφ = (lat2 - lat1) * Math.PI / 180;
+            const Δλ = (lon2 - lon1) * Math.PI / 180;
+
+            const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
+                    Math.cos(φ1) * Math.cos(φ2) *
+                    Math.sin(Δλ/2) * Math.sin(Δλ/2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+
+            return R * c;
+        }
+
+        function bearing(φ1, λ1, φ2, λ2) {
+            const y = Math.sin(λ2 - λ1) * Math.sin(φ2);
+            const x = Math.cos(φ1) * Math.sin(φ2) -
+                    Math.sin(φ1) * Math.cos(φ2) * Math.cos(λ2 - λ1);
+            return Math.atan2(y, x);
+        }
+
+        function updateDirectionIndicator() {
+            const direction = parseFloat(document.getElementById('direction').value) || 135;
+            const label = document.querySelector('.direction-label');
+            const leftLabel = document.querySelector('.edge-label.left');
+            const rightLabel = document.querySelector('.edge-label.right');
+            
+            // Calculate the angles 90 degrees to either side
+            const leftAngle = ((direction - 90 + 360) % 360).toFixed(1);
+            const rightAngle = ((direction + 90 + 360) % 360).toFixed(1);
+            
+            label.textContent = `${direction.toFixed(1)}° ${getCompassDirection(direction)}`;
+            leftLabel.textContent = `${leftAngle}°`;
+            rightLabel.textContent = `${rightAngle}°`;
+            
+            findNearbyIslands(); // Refresh islands to update markers
+        }
+
+        // Load islands when the page loads
+        window.onload = function() {
+            findNearbyIslands();
+            updateDirectionIndicator();
+        }
+
+        // Add event listener for direction changes
+        document.getElementById('direction').addEventListener('input', updateDirectionIndicator);
+
+        function getCurrentLocation(skipButton) {
+            if (!skipButton) {
+                const locationButton = document.getElementById('locationButton');
+                
+                if (!navigator.geolocation) {
+                    alert('Geolocation is not supported by your browser');
+                    return;
+                }
+                
+                locationButton.disabled = true;
+                locationButton.textContent = 'Getting location...';
+            }
+            
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    document.getElementById('latitude').value = position.coords.latitude;
+                    document.getElementById('longitude').value = position.coords.longitude;
+                    document.getElementById('location-preset').value = 'none';
+                    
+                    // If device orientation is supported, request permission and start listening
+                    if (window.DeviceOrientationEvent && typeof DeviceOrientationEvent.requestPermission === 'function') {
+                        // iOS 13+ requires permission
+                        DeviceOrientationEvent.requestPermission()
+                            .then(permissionState => {
+                                if (permissionState === 'granted') {
+                                    startCompassListener();
+                                }
+                            })
+                            .catch(console.error);
+                    } else {
+                        // Other browsers
+                        startCompassListener();
+                    }
+                    
+                    findNearbyIslands();
+                    updateURL();
+                    
+                    if (!skipButton) {
+                        locationButton.disabled = false;
+                        locationButton.textContent = 'Get Current Location';
+                    }
+                },
+                (error) => {
+                    let message;
+                    switch(error.code) {
+                        case error.PERMISSION_DENIED:
+                            message = 'Location permission denied';
+                            break;
+                        case error.POSITION_UNAVAILABLE:
+                            message = 'Location information unavailable';
+                            break;
+                        case error.TIMEOUT:
+                            message = 'Location request timed out';
+                            break;
+                        default:
+                            message = 'An unknown error occurred';
+                    }
+                    if (!skipButton) {
+                        alert(message);
+                        locationButton.disabled = false;
+                        locationButton.textContent = 'Get Current Location';
+                    }
+                },
+                {
+                    enableHighAccuracy: true,
+                    timeout: 10000,
+                    maximumAge: 0
+                }
+            );
+        }
+
+        function startCompassListener() {
+            window.addEventListener('deviceorientationabsolute', handleOrientation, true);
+            // Fallback to regular deviceorientation event if absolute is not available
+            window.addEventListener('deviceorientation', handleOrientation, true);
+        }
+
+        function handleOrientation(event) {
+            let direction;
+            
+            if (event.webkitCompassHeading) {
+                // iOS devices
+                direction = event.webkitCompassHeading;
+            } else if (event.absolute && event.alpha) {
+                // Android devices
+                direction = 360 - event.alpha;
+            }
+
+            if (direction !== undefined) {
+                document.getElementById('direction').value = direction.toFixed(1);
+                updateDirectionIndicator();
+            }
+        }
+
+        function toggleFullscreen(button) {
+            const container = button.parentElement;
+            
+            if (!container.classList.contains('fullscreen')) {
+                container.classList.add('fullscreen');
+                button.textContent = '✕';
+                findNearbyIslands();
+            } else {
+                container.classList.remove('fullscreen');
+                button.textContent = '⛶';
+                findNearbyIslands();
+            }
+        }
+
+        function toggleAutoUpdate(checkbox) {
+            if (checkbox.checked) {
+                window.autoUpdateInterval = setInterval(() => {
+                    getCurrentLocation(true);
+                }, 1000);
+                // Start compass updates
+                startCompassListener();
+            } else {
+                if (window.autoUpdateInterval) {
+                    clearInterval(window.autoUpdateInterval);
+                    window.autoUpdateInterval = null;
+                }
+                // Stop compass updates
+                window.removeEventListener('deviceorientationabsolute', handleOrientation, true);
+                window.removeEventListener('deviceorientation', handleOrientation, true);
+            }
+        }
+
+        // Clear auto-update when page is hidden
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) {
+                const checkbox = document.getElementById('autoUpdate');
+                if (checkbox.checked) {
+                    checkbox.checked = false;
+                    toggleAutoUpdate(checkbox);
+                }
+            }
+        });
+
+        // Add event listeners to lat/lon inputs to update preset to "none" when changed
+        document.getElementById('latitude').addEventListener('input', function() {
+            document.getElementById('location-preset').value = 'none';
+        });
+
+        document.getElementById('longitude').addEventListener('input', function() {
+            document.getElementById('location-preset').value = 'none';
+        });
+
+        // Debounce function to limit how often searches are performed
+        function debounce(func, wait) {
+            let timeout;
+            return function executedFunction(...args) {
+                const later = () => {
+                    clearTimeout(timeout);
+                    func(...args);
+                };
+                clearTimeout(timeout);
+                timeout = setTimeout(later, wait);
+            };
+        }
+
+        // Debounced version of findNearbyIslands
+        const debouncedSearch = debounce(() => {
+            findNearbyIslands();
+            updateURL();
+        }, 500); // Wait 500ms after last change before searching
+
+        // Add event listeners for all form inputs
+        const formInputs = document.querySelectorAll('.input-group input, .input-group select');
+        formInputs.forEach(input => {
+            input.addEventListener('input', debouncedSearch);
+            input.addEventListener('change', debouncedSearch);
+        });
+
+        // Add escape key handler
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape') {
+                const container = document.querySelector('.direction-indicator.fullscreen');
+                if (container) {
+                    const button = container.querySelector('.fullscreen-button');
+                    toggleFullscreen(button);
+                }
+            }
+        });
+
+        function openInOSM() {
+            const lat = document.getElementById('latitude').value;
+            const lon = document.getElementById('longitude').value;
+            const radius = parseFloat(document.getElementById('radius').value) || 3;
+            const zoom = radius <= 2.5 ? 14 : radius <= 4 ? 13 : 12;
+            const url = `https://www.openstreetmap.org/?mlat=${lat}&mlon=${lon}&zoom=${zoom}#map=${zoom}/${lat}/${lon}`;
+            window.open(url, '_blank');
+        }
+
+        function openInGoogleMaps() {
+            const lat = document.getElementById('latitude').value;
+            const lon = document.getElementById('longitude').value;
+            const url = `https://www.google.com/maps?q=${lat},${lon}`;
+            window.open(url, '_blank');
+        }
+
+        // Add function to update URL with current values
+        function updateURL() {
+            const lat = document.getElementById('latitude').value;
+            const lon = document.getElementById('longitude').value;
+            const radius = document.getElementById('radius').value;
+            const dir = document.getElementById('direction').value;
+            const lang = document.getElementById('language').value;
+            
+            const params = new URLSearchParams();
+            if (lat) params.set('lat', lat);
+            if (lon) params.set('lon', lon);
+            if (radius) params.set('radius', radius);
+            if (dir) params.set('dir', dir);
+            if (lang) params.set('lang', lang);
+            
+            const newURL = `${window.location.pathname}?${params.toString()}`;
+            window.history.replaceState({}, '', newURL);
+        }
+
+        function updateLastUpdated(totalCount, displayedCount) {
+            const lastUpdatedElement = document.getElementById('lastUpdated');
+            const timestamp = new Date();
+            const formattedDate = timestamp.toISOString().split('T')[0]; // Format as yyyy-mm-dd
+            const formattedTime = timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }); // Format time as HH:MM:SS
+            lastUpdatedElement.textContent = `Last updated: ${formattedDate} ${formattedTime}, items fetched: ${totalCount}, shown on chart: ${displayedCount}`; // Ensure 'items' is used
+        }
+
+        function renderHorizonChart(islands) {
+            const chartData = islands.map(island => {
+                const span = island.span;
+                return {
+                    name: island.island.tags.name || 'Unknown',
+                    distance: span.distance,
+                    minAngle: span.minAngle,
+                    maxAngle: span.maxAngle,
+                    wikidata: island.island.tags.wikidata || null // Include wikidata but do not filter
+                };
+            });
+
+            // Ensure all islands are included in the chart data
+            chartData.forEach(data => {
+                plotIslandOnChart(data.name, data.distance, data.minAngle, data.maxAngle);
+            });
+
+            // Additional chart rendering logic...
+        }
+
+        // Example function to plot an island on the chart
+        function plotIslandOnChart(name, distance, minAngle, maxAngle) {
+            // Implement the logic to plot the island on the horizon chart
+            // Ensure that the chart can visually represent all islands
+            if (distance <= 3) { // Assuming the radius is 3 km
+                // Example: Use a charting library to plot the island
+                // chart.plot(name, distance, minAngle, maxAngle);
+            }
+        }
+
+        // Define default values for Brunsparken
+        const defaultValues = {
+            distance: 0.31, // Example default distance in km
+            minAngle: 186.0, // Example default minimum angle
+            maxAngle: 231.7, // Example default maximum angle
+            direction: 180, // Example default direction
+            radius: 3 // Example default radius in km
+        };
+
+        // Function to initialize the chart with default values
+        function initializeChart() {
+            // Use the default values for the initial setup
+            const initialDistance = defaultValues.distance;
+            const initialMinAngle = defaultValues.minAngle;
+            const initialMaxAngle = defaultValues.maxAngle;
+            const initialDirection = defaultValues.direction;
+            const initialRadius = defaultValues.radius;
+
+            // Example: Load islands with default values
+            loadIslands(initialDistance, initialMinAngle, initialMaxAngle, initialDirection, initialRadius);
+        }
+
+        // Call the initialize function on page load
+        window.onload = initializeChart;
+
+        // Function to load islands based on provided parameters
+        function loadIslands(distance, minAngle, maxAngle, direction, radius) {
+            // Logic to load and display islands based on the provided parameters
+            // Ensure that the horizon chart is rendered with these values
+            // ...
+        }
+    </script>
+</body>
+</html>
