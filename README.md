@@ -14,5 +14,7 @@ Use to visualize and identify islands easier when e.g. boating in the archipelag
 - Easily access equivalent spot in Google Maps or OpenStreetMap.
 - Cache data for less API requests. 
 
-## Implementation
+## Implementation with javascript
 [island-horizon-js.html](island-horizon-js.html): Proof of concept. Uses javascript, fetches data from openstreetmap API. No cache (yet). Created purely in Cursor by prompting Claude AI. 
+
+<img src='island-horizon-js.png' width="50%">
