@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Camera Access with Continuous Coordinates and Orientation</title>
+  <style>
+    #info {
+      margin-top: 10px;
+      font-family: Arial, sans-serif;
+    }
+  </style>
+</head>
+<body>
+  <h1>Camera Access with Continuous Coordinates and Orientation</h1>
+  <video id="camera" width="640" height="480" autoplay></video>
+  
+  <div id="info">
+    <p>Coordinates: <span id="coordinates">Loading...</span></p>
+    <p>Direction: <span id="direction">Loading...</span>°</p>
+    <p>Roll: <span id="roll">Loading...</span>°</p>
+  </div>
+
+  <script>
+    // Function to access the camera and display the feed
+    async function startCamera() {
+      try {
+        // Request access to the user's camera
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        
+        // Get the video element and set its source to the camera stream
+        const videoElement = document.getElementById('camera');
+        videoElement.srcObject = stream;
+      } catch (error) {
+        // Handle errors (e.g., user denies access)
+        console.error('Error accessing camera:', error);
+        alert('Could not access the camera.');
+      }
+    }
+
+    // Get coordinates continuously (updates when position changes)
+    function watchCoordinates() {
+      if (navigator.geolocation) {
+        navigator.geolocation.watchPosition(position => {
+          const coords = position.coords;
+          const coordinates = `${coords.latitude.toFixed(4)}, ${coords.longitude.toFixed(4)}`;
+          document.getElementById('coordinates').textContent = coordinates;
+        }, error => {
+          console.error('Error getting location:', error);
+          document.getElementById('coordinates').textContent = 'Unable to get coordinates';
+        }, { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 });
+      } else {
+        document.getElementById('coordinates').textContent = 'Geolocation not supported';
+      }
+    }
+
+    // Get orientation data (direction and roll)
+    function getOrientation(event) {
+      const direction = event.alpha ? event.alpha.toFixed(1) : 'N/A'; // Direction (compass heading)
+      const roll = event.gamma ? event.gamma.toFixed(1) : 'N/A'; // Roll (side-to-side tilt)
+
+      document.getElementById('direction').textContent = direction;
+      document.getElementById('roll').textContent = roll;
+    }
+
+    // Start the camera when the page is loaded
+    startCamera();
+
+    // Watch the coordinates continuously
+    watchCoordinates();
+
+    // Listen to the device orientation event
+    window.addEventListener('deviceorientation', getOrientation);
+  </script>
+</body>
+</html>
