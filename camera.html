@@ -3,74 +3,87 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Camera Access with Continuous Coordinates and Orientation</title>
+  <title>Camera and Orientation</title>
   <style>
-    #info {
+    video {
+      width: 100%;
+      height: auto;
+      object-fit: cover;
+    }
+    #coordinates, #direction, #roll {
+      font-size: 16px;
       margin-top: 10px;
-      font-family: Arial, sans-serif;
     }
   </style>
 </head>
 <body>
-  <h1>Camera Access with Continuous Coordinates and Orientation</h1>
-  <video id="camera" width="640" height="480" autoplay></video>
-  
-  <div id="info">
-    <p>Coordinates: <span id="coordinates">Loading...</span></p>
-    <p>Direction: <span id="direction">Loading...</span>°</p>
-    <p>Roll: <span id="roll">Loading...</span>°</p>
-  </div>
+  <h1>Camera and Orientation</h1>
+  <video id="video" autoplay></video>
+  <div id="coordinates">Coordinates: Loading...</div>
+  <div id="direction">Direction: Loading...</div>
+  <div id="roll">Roll: Loading...</div>
 
   <script>
-    // Function to access the camera and display the feed
-    async function startCamera() {
+    const video = document.getElementById('video');
+    const coordinates = document.getElementById('coordinates');
+    const direction = document.getElementById('direction');
+    const roll = document.getElementById('roll');
+    
+    // Request camera access
+    async function getCamera() {
       try {
-        // Request access to the user's camera
         const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-        
-        // Get the video element and set its source to the camera stream
-        const videoElement = document.getElementById('camera');
-        videoElement.srcObject = stream;
-      } catch (error) {
-        // Handle errors (e.g., user denies access)
-        console.error('Error accessing camera:', error);
-        alert('Could not access the camera.');
+        video.srcObject = stream;
+      } catch (err) {
+        console.error("Camera access denied:", err);
+        alert("Please enable camera access.");
       }
     }
 
-    // Get coordinates continuously (updates when position changes)
-    function watchCoordinates() {
-      if (navigator.geolocation) {
-        navigator.geolocation.watchPosition(position => {
-          const coords = position.coords;
-          const coordinates = `${coords.latitude.toFixed(4)}, ${coords.longitude.toFixed(4)}`;
-          document.getElementById('coordinates').textContent = coordinates;
-        }, error => {
-          console.error('Error getting location:', error);
-          document.getElementById('coordinates').textContent = 'Unable to get coordinates';
-        }, { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 });
+    // Get device orientation
+    function handleOrientation(event) {
+      const alpha = event.alpha;  // Compass direction
+      const beta = event.beta;    // Tilt front-to-back (latitude)
+      const gamma = event.gamma;  // Tilt left-to-right (longitude)
+
+      console.log("Alpha:", alpha, "Beta:", beta, "Gamma:", gamma);
+
+      // Update coordinates
+      coordinates.textContent = `Latitude: ${beta.toFixed(2)}°, Longitude: ${gamma.toFixed(2)}°`;
+
+      // Update direction and roll
+      if (alpha !== null) {
+        direction.textContent = `Direction: ${alpha.toFixed(2)}°`;
+      }
+
+      if (beta !== null) {
+        roll.textContent = `Roll: ${beta.toFixed(2)}°`;
+      }
+    }
+
+    // Request permission for device orientation (iOS-specific)
+    async function requestOrientationPermission() {
+      if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+        try {
+          const permissionState = await DeviceOrientationEvent.requestPermission();
+          if (permissionState === 'granted') {
+            window.addEventListener('deviceorientation', handleOrientation);
+          } else {
+            alert("Orientation permission denied.");
+          }
+        } catch (err) {
+          console.error("Error requesting orientation permission:", err);
+        }
       } else {
-        document.getElementById('coordinates').textContent = 'Geolocation not supported';
+        // For devices that don't need explicit permission
+        window.addEventListener('deviceorientation', handleOrientation);
       }
     }
 
-    // Get orientation data (direction and roll)
-    function getOrientation(event) {
-      const direction = event.alpha ? event.alpha.toFixed(1) : 'N/A'; // Direction (compass heading)
-      const roll = event.gamma ? event.gamma.toFixed(1) : 'N/A'; // Roll (side-to-side tilt)
+    // Start camera and orientation handling
+    getCamera();
+    requestOrientationPermission();
 
-      document.getElementById('direction').textContent = direction;
-      document.getElementById('roll').textContent = roll;
-    }
-
-    // Start the camera when the page is loaded
-    startCamera();
-
-    // Watch the coordinates continuously
-    watchCoordinates();
-
-    // Listen to the device orientation event
-    window.addEventListener('deviceorientation', getOrientation);
   </script>
 </body>
 </html>
