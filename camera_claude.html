@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mobile Camera & Orientation</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f0f0f0;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+        #videoContainer {
+            position: relative;
+            width: 100%;
+            margin-bottom: 20px;
+        }
+        #camera {
+            width: 100%;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        #info {
+            background-color: rgba(0,0,0,0.7);
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            margin-top: 10px;
+        }
+        .data-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+        }
+        .label {
+            font-weight: bold;
+        }
+        .value {
+            font-family: monospace;
+        }
+        .error {
+            color: red;
+            text-align: center;
+            padding: 20px;
+            background-color: #ffeeee;
+            border-radius: 5px;
+        }
+        #startButton {
+            display: block;
+            margin: 20px auto;
+            padding: 10px 20px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        #startButton:hover {
+            background-color: #45a049;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Mobile Camera & Orientation</h1>
+        
+        <button id="startButton">Start Camera</button>
+        
+        <div id="videoContainer">
+            <video id="camera" autoplay playsinline></video>
+        </div>
+        
+        <div id="info">
+            <div class="data-row">
+                <span class="label">Geolocation:</span>
+                <span class="value" id="geoCoords">Waiting for permission...</span>
+            </div>
+            <div class="data-row">
+                <span class="label">Heading (°):</span>
+                <span class="value" id="heading">Waiting for data...</span>
+            </div>
+            <div class="data-row">
+                <span class="label">Alpha (z-axis):</span>
+                <span class="value" id="alpha">Waiting for data...</span>
+            </div>
+            <div class="data-row">
+                <span class="label">Beta (x-axis):</span>
+                <span class="value" id="beta">Waiting for data...</span>
+            </div>
+            <div class="data-row">
+                <span class="label">Gamma (y-axis):</span>
+                <span class="value" id="gamma">Waiting for data...</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const startButton = document.getElementById('startButton');
+            const videoElement = document.getElementById('camera');
+            const geoCoords = document.getElementById('geoCoords');
+            const headingElement = document.getElementById('heading');
+            const alphaElement = document.getElementById('alpha');
+            const betaElement = document.getElementById('beta');
+            const gammaElement = document.getElementById('gamma');
+            
+            // Check for required permissions
+            function checkFeatureSupport() {
+                if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                    showError("Camera API not supported in your browser");
+                    return false;
+                }
+                
+                if (!navigator.geolocation) {
+                    showError("Geolocation not supported in your browser");
+                    return false;
+                }
+                
+                if (!window.DeviceOrientationEvent) {
+                    showError("Device orientation not supported in your browser");
+                    return false;
+                }
+                
+                return true;
+            }
+            
+            function showError(message) {
+                const errorDiv = document.createElement('div');
+                errorDiv.className = 'error';
+                errorDiv.textContent = message;
+                document.querySelector('.container').appendChild(errorDiv);
+            }
+            
+            // Start camera stream
+            function startCamera() {
+                const constraints = {
+                    video: {
+                        facingMode: 'environment', // Use the back camera
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 }
+                    }
+                };
+                
+                navigator.mediaDevices.getUserMedia(constraints)
+                    .then(function(stream) {
+                        videoElement.srcObject = stream;
+                    })
+                    .catch(function(err) {
+                        showError("Error accessing camera: " + err.message);
+                    });
+            }
+            
+            // Get geolocation
+            function getGeolocation() {
+                navigator.geolocation.watchPosition(
+                    function(position) {
+                        const lat = position.coords.latitude.toFixed(6);
+                        const lng = position.coords.longitude.toFixed(6);
+                        geoCoords.textContent = `${lat}, ${lng}`;
+                        
+                        // Get heading if available
+                        if (position.coords.heading !== null) {
+                            headingElement.textContent = position.coords.heading.toFixed(2);
+                        } else {
+                            headingElement.textContent = "Not available";
+                        }
+                    },
+                    function(error) {
+                        geoCoords.textContent = "Error: " + error.message;
+                    },
+                    {
+                        enableHighAccuracy: true,
+                        maximumAge: 0,
+                        timeout: 5000
+                    }
+                );
+            }
+            
+            // Handle device orientation
+            function handleOrientation(event) {
+                // For iOS devices that require permission
+                if (event.alpha === null) {
+                    if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+                        alphaElement.textContent = "Needs permission";
+                        betaElement.textContent = "Needs permission";
+                        gammaElement.textContent = "Needs permission";
+                    } else {
+                        alphaElement.textContent = "Not available";
+                        betaElement.textContent = "Not available";
+                        gammaElement.textContent = "Not available";
+                    }
+                    return;
+                }
+                
+                // Update orientation values
+                alphaElement.textContent = event.alpha.toFixed(2) + '°';  // z-axis (0 to 360)
+                betaElement.textContent = event.beta.toFixed(2) + '°';    // x-axis (-180 to 180)
+                gammaElement.textContent = event.gamma.toFixed(2) + '°';  // y-axis (-90 to 90)
+            }
+            
+            // Request iOS permissions
+            function requestIOSPermissions() {
+                if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+                    DeviceOrientationEvent.requestPermission()
+                        .then(response => {
+                            if (response === 'granted') {
+                                window.addEventListener('deviceorientation', handleOrientation);
+                            } else {
+                                showError("Device orientation permission denied");
+                            }
+                        })
+                        .catch(error => {
+                            showError("Error requesting orientation permission: " + error);
+                        });
+                } else {
+                    // For non-iOS devices
+                    window.addEventListener('deviceorientation', handleOrientation);
+                }
+            }
+            
+            // Start everything when the button is clicked
+            startButton.addEventListener('click', function() {
+                if (!checkFeatureSupport()) {
+                    return;
+                }
+                
+                startCamera();
+                getGeolocation();
+                requestIOSPermissions();
+                
+                // Hide the button after starting
+                startButton.style.display = 'none';
+            });
+        });
+    </script>
+</body>
+</html>

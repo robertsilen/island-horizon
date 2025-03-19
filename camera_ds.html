@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Camera and Orientation</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin: 0;
+            padding: 0;
+            background-color: #f0f0f0;
+        }
+        #camera-feed {
+            width: 100%;
+            max-width: 640px;
+            margin: 20px auto;
+            display: block;
+            background-color: black;
+        }
+        #data {
+            margin-top: 20px;
+            font-size: 18px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Camera and Orientation</h1>
+    <video id="camera-feed" autoplay></video>
+    <div id="data">
+        <p>Latitude: <span id="latitude">0</span></p>
+        <p>Longitude: <span id="longitude">0</span></p>
+        <p>Direction: <span id="direction">0</span>°</p>
+        <p>Roll: <span id="roll">0</span>°</p>
+    </div>
+
+    <script>
+        // Access the camera
+        const video = document.getElementById('camera-feed');
+        navigator.mediaDevices.getUserMedia({ video: true })
+            .then((stream) => {
+                video.srcObject = stream;
+            })
+            .catch((error) => {
+                console.error('Error accessing the camera:', error);
+            });
+
+        // Get device orientation and motion data
+        if (window.DeviceOrientationEvent) {
+            window.addEventListener('deviceorientation', (event) => {
+                document.getElementById('direction').textContent = Math.round(event.alpha || 0); // Compass heading
+                document.getElementById('roll').textContent = Math.round(event.gamma || 0); // Roll (left/right tilt)
+            });
+        }
+
+        if (window.DeviceMotionEvent) {
+            window.addEventListener('devicemotion', (event) => {
+                // Optional: You can add more motion data here if needed
+            });
+        }
+
+        // Get geolocation data
+        if (navigator.geolocation) {
+            navigator.geolocation.watchPosition((position) => {
+                document.getElementById('latitude').textContent = position.coords.latitude.toFixed(6);
+                document.getElementById('longitude').textContent = position.coords.longitude.toFixed(6);
+            }, (error) => {
+                console.error('Error getting geolocation:', error);
+            });
+        } else {
+            console.error('Geolocation is not supported by this browser.');
+        }
+    </script>
+</body>
+</html>
