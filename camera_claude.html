@@ -24,6 +24,7 @@
             position: relative;
             width: 100%;
             margin-bottom: 20px;
+            overflow: hidden;
         }
         #camera {
             width: 100%;
@@ -32,9 +33,10 @@
         }
         #horizonLine {
             position: absolute;
-            width: 100%;
+            width: 200%; /* Make it wider than the container to handle rotations */
             height: 2px;
             background-color: rgba(255, 0, 0, 0.7);
+            left: -50%; /* Center the wider line */
             top: 50%;
             transform-origin: center;
             pointer-events: none;
@@ -113,6 +115,10 @@
                 <span class="label">Gamma (y-axis):</span>
                 <span class="value" id="gamma">Waiting for data...</span>
             </div>
+            <div class="data-row">
+                <span class="label">Horizon Angle (°):</span>
+                <span class="value" id="horizonAngle">Waiting for data...</span>
+            </div>
         </div>
     </div>
 
@@ -126,6 +132,7 @@
             const alphaElement = document.getElementById('alpha');
             const betaElement = document.getElementById('beta');
             const gammaElement = document.getElementById('gamma');
+            const horizonAngleElement = document.getElementById('horizonAngle');
             
             // Check for required permissions
             function checkFeatureSupport() {
@@ -199,11 +206,50 @@
                 );
             }
             
-            // Update horizon line based on device orientation
-            function updateHorizonLine(gamma) {
-                // gamma is the side-to-side tilt (-90 to 90 degrees)
-                // We'll use it to rotate our horizon line
-                horizonLine.style.transform = `rotate(${gamma}deg)`;
+            // Convert degrees to radians
+            function toRadians(degrees) {
+                return degrees * (Math.PI / 180);
+            }
+            
+            // Convert radians to degrees
+            function toDegrees(radians) {
+                return radians * (180 / Math.PI);
+            }
+            
+            // Calculate the horizon angle based on device orientation
+            function calculateHorizonAngle(beta, gamma) {
+                // Convert to radians for calculations
+                const betaRad = toRadians(beta);
+                const gammaRad = toRadians(gamma);
+                
+                // Calculate the horizon angle using both beta and gamma values
+                // This is a more accurate formula based on 3D orientation
+                // The atan2 function gives us the angle in the correct quadrant
+                const horizonRad = Math.atan2(
+                    Math.sin(gammaRad),
+                    Math.sin(betaRad) * Math.cos(gammaRad)
+                );
+                
+                // Convert back to degrees
+                return toDegrees(horizonRad);
+            }
+            
+            // Apply transforms to position the horizon line correctly
+            function updateHorizonLine(beta, gamma) {
+                const horizonAngle = calculateHorizonAngle(beta, gamma);
+                
+                // Apply the rotation to the horizon line
+                horizonLine.style.transform = `rotate(${horizonAngle}deg)`;
+                
+                // Calculate vertical offset based on beta (forward/backward tilt)
+                // This moves the line up or down based on whether you're looking up or down
+                const verticalOffset = Math.sin(toRadians(beta)) * 50; // 50 is sensitivity factor
+                horizonLine.style.top = `calc(50% - ${verticalOffset}px)`;
+                
+                // Update the display value
+                horizonAngleElement.textContent = horizonAngle.toFixed(2) + '°';
+                
+                return horizonAngle;
             }
             
             // Handle device orientation
@@ -214,25 +260,28 @@
                         alphaElement.textContent = "Needs permission";
                         betaElement.textContent = "Needs permission";
                         gammaElement.textContent = "Needs permission";
+                        horizonAngleElement.textContent = "Needs permission";
                     } else {
                         alphaElement.textContent = "Not available";
                         betaElement.textContent = "Not available";
                         gammaElement.textContent = "Not available";
+                        horizonAngleElement.textContent = "Not available";
                     }
                     return;
                 }
                 
-                // Update orientation values
-                const alpha = event.alpha.toFixed(2);
-                const beta = event.beta.toFixed(2);
-                const gamma = event.gamma.toFixed(2);
+                // Get the orientation values
+                const alpha = event.alpha;
+                const beta = event.beta;
+                const gamma = event.gamma;
                 
-                alphaElement.textContent = alpha + '°';  // z-axis (0 to 360)
-                betaElement.textContent = beta + '°';    // x-axis (-180 to 180)
-                gammaElement.textContent = gamma + '°';  // y-axis (-90 to 90)
+                // Update orientation values display
+                alphaElement.textContent = alpha.toFixed(2) + '°';  // z-axis (0 to 360)
+                betaElement.textContent = beta.toFixed(2) + '°';    // x-axis (-180 to 180)
+                gammaElement.textContent = gamma.toFixed(2) + '°';  // y-axis (-90 to 90)
                 
-                // Update horizon line
-                updateHorizonLine(gamma);
+                // Update horizon line position and angle
+                updateHorizonLine(beta, gamma);
             }
             
             // Request iOS permissions
@@ -254,6 +303,17 @@
                     window.addEventListener('deviceorientation', handleOrientation);
                 }
             }
+            
+            // Recalculate horizon position when video dimensions change
+            videoElement.addEventListener('loadedmetadata', function() {
+                // If we already have orientation data, recalculate horizon
+                if (betaElement.textContent !== "Waiting for data..." && 
+                    gammaElement.textContent !== "Waiting for data...") {
+                    const beta = parseFloat(betaElement.textContent);
+                    const gamma = parseFloat(gammaElement.textContent);
+                    updateHorizonLine(beta, gamma);
+                }
+            });
             
             // Start everything when the button is clicked
             startButton.addEventListener('click', function() {
